@@ -63,7 +63,7 @@ Exemple : `./sh13 localhost 32000 localhost 32001 Joueur1`
 
 ## Capture d'écran
 
-![Interface du jeu SH13](1.jpg)
+![Interface du jeu SH13](assets/screenshots/1.jpg)
 _Interface du jeu montrant le plateau de jeu avec les objets, les joueurs et les cartes des personnages_
 
 ## Auteur
