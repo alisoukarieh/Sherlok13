@@ -21,8 +21,7 @@ Ce projet est une implémentation du jeu Sherlock Holmes 13, un jeu de déductio
 Pour compiler le serveur et le client :
 
 ```bash
-gcc -o server server.c -Wall
-gcc -o sh13 sh13.c -lSDL2 -lSDL2_image -lSDL2_ttf -pthread -Wall
+./cmd.sh
 ```
 
 ## Exécution
@@ -43,14 +42,6 @@ Exemple : `./server 32000`
 
 Exemple : `./sh13 localhost 32000 localhost 32001 Joueur1`
 
-### Utilisation du script cmd.sh
-
-Le script `cmd.sh` facilite le lancement de plusieurs instances du jeu sur une même machine :
-
-```bash
-./cmd.sh
-```
-
 ## Règles du jeu
 
 1. Chaque joueur reçoit 3 cartes représentant des personnages
@@ -70,6 +61,11 @@ Le script `cmd.sh` facilite le lancement de plusieurs instances du jeu sur une m
 - Système d'élimination des joueurs
 - Messages visuels pour l'état de la partie
 
+## Capture d'écran
+
+![Interface du jeu SH13](1.jpg)
+_Interface du jeu montrant le plateau de jeu avec les objets, les joueurs et les cartes des personnages_
+
 ## Auteur
 
-Réalisé par Ali Soukarieh pour le module de Programmation Système
+Réalisé par Ali Soukarieh pour le module de OS
