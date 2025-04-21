@@ -28,6 +28,8 @@ int tableCartes[4][8];
 int b[3];
 int goEnabled;
 int connectEnabled;
+int isEliminated = 0; // Indicates if the current player has been eliminated
+int winByElimination = 0; // Indicates if someone won by elimination
 
 char *nbobjets[]={"5","5","5","5","4","3","3","3"};
 char *nbnoms[]={"Sebastian Moran", "irene Adler", "inspector Lestrade",
@@ -155,31 +157,31 @@ int main(int argc, char ** argv)
 
     SDL_Surface *deck[13],*objet[8],*gobutton,*connectbutton;
 
-	deck[0] = IMG_Load("SH13_0.png");
-	deck[1] = IMG_Load("SH13_1.png");
-	deck[2] = IMG_Load("SH13_2.png");
-	deck[3] = IMG_Load("SH13_3.png");
-	deck[4] = IMG_Load("SH13_4.png");
-	deck[5] = IMG_Load("SH13_5.png");
-	deck[6] = IMG_Load("SH13_6.png");
-	deck[7] = IMG_Load("SH13_7.png");
-	deck[8] = IMG_Load("SH13_8.png");
-	deck[9] = IMG_Load("SH13_9.png");
-	deck[10] = IMG_Load("SH13_10.png");
-	deck[11] = IMG_Load("SH13_11.png");
-	deck[12] = IMG_Load("SH13_12.png");
+	deck[0] = IMG_Load("assets/images/SH13_0.png");
+	deck[1] = IMG_Load("assets/images/SH13_1.png");
+	deck[2] = IMG_Load("assets/images/SH13_2.png");
+	deck[3] = IMG_Load("assets/images/SH13_3.png");
+	deck[4] = IMG_Load("assets/images/SH13_4.png");
+	deck[5] = IMG_Load("assets/images/SH13_5.png");
+	deck[6] = IMG_Load("assets/images/SH13_6.png");
+	deck[7] = IMG_Load("assets/images/SH13_7.png");
+	deck[8] = IMG_Load("assets/images/SH13_8.png");
+	deck[9] = IMG_Load("assets/images/SH13_9.png");
+	deck[10] = IMG_Load("assets/images/SH13_10.png");
+	deck[11] = IMG_Load("assets/images/SH13_11.png");
+	deck[12] = IMG_Load("assets/images/SH13_12.png");
 
-	objet[0] = IMG_Load("SH13_pipe_120x120.png");
-	objet[1] = IMG_Load("SH13_ampoule_120x120.png");
-	objet[2] = IMG_Load("SH13_poing_120x120.png");
-	objet[3] = IMG_Load("SH13_couronne_120x120.png");
-	objet[4] = IMG_Load("SH13_carnet_120x120.png");
-	objet[5] = IMG_Load("SH13_collier_120x120.png");
-	objet[6] = IMG_Load("SH13_oeil_120x120.png");
-	objet[7] = IMG_Load("SH13_crane_120x120.png");
+	objet[0] = IMG_Load("assets/images/SH13_pipe_120x120.png");
+	objet[1] = IMG_Load("assets/images/SH13_ampoule_120x120.png");
+	objet[2] = IMG_Load("assets/images/SH13_poing_120x120.png");
+	objet[3] = IMG_Load("assets/images/SH13_couronne_120x120.png");
+	objet[4] = IMG_Load("assets/images/SH13_carnet_120x120.png");
+	objet[5] = IMG_Load("assets/images/SH13_collier_120x120.png");
+	objet[6] = IMG_Load("assets/images/SH13_oeil_120x120.png");
+	objet[7] = IMG_Load("assets/images/SH13_crane_120x120.png");
 
-	gobutton = IMG_Load("gobutton.png");
-	connectbutton = IMG_Load("connectbutton.png");
+	gobutton = IMG_Load("assets/images/gobutton.png");
+	connectbutton = IMG_Load("assets/images/connectbutton.png");
 
 	strcpy(gNames[0],"-");
 	strcpy(gNames[1],"-");
@@ -214,7 +216,7 @@ int main(int argc, char ** argv)
     texture_gobutton = SDL_CreateTextureFromSurface(renderer, gobutton);
     texture_connectbutton = SDL_CreateTextureFromSurface(renderer, connectbutton);
 
-    TTF_Font* Sans = TTF_OpenFont("sans.ttf", 15); 
+    TTF_Font* Sans = TTF_OpenFont("assets/fonts/sans.ttf", 15); 
     printf("Sans=%p\n",Sans);
 
    /* Creation du thread serveur tcp. */
@@ -239,8 +241,7 @@ int main(int argc, char ** argv)
 				{
 					sprintf(sendBuffer,"C %s %d %s",gClientIpAddress,gClientPort,gName);
 
-					// RAJOUTER DU CODE ICI
-					sendMessageToServer(gServerIpAddress,gServerPort,sendBuffer);
+					sendMessageToServer(gServerIpAddress, gServerPort, sendBuffer);
 
 					connectEnabled=0;
 				}
@@ -271,23 +272,17 @@ int main(int argc, char ** argv)
 					if (guiltSel!=-1)
 					{
 						sprintf(sendBuffer,"G %d %d",gId, guiltSel);
-
-					// RAJOUTER DU CODE ICI
-
+						sendMessageToServer(gServerIpAddress, gServerPort, sendBuffer);
 					}
 					else if ((objetSel!=-1) && (joueurSel==-1))
 					{
 						sprintf(sendBuffer,"O %d %d",gId, objetSel);
-
-					// RAJOUTER DU CODE ICI
-
+						sendMessageToServer(gServerIpAddress, gServerPort, sendBuffer);
 					}
 					else if ((objetSel!=-1) && (joueurSel!=-1))
 					{
 						sprintf(sendBuffer,"S %d %d %d",gId, joueurSel,objetSel);
-
-					// RAJOUTER DU CODE ICI
-
+						sendMessageToServer(gServerIpAddress, gServerPort, sendBuffer);
 					}
 				}
 				else
@@ -310,29 +305,93 @@ int main(int argc, char ** argv)
 		{
 			// Message 'I' : le joueur recoit son Id
 			case 'I':
-				// RAJOUTER DU CODE ICI
-
+				sscanf(gbuffer, "I %d", &gId);
 				break;
 			// Message 'L' : le joueur recoit la liste des joueurs
 			case 'L':
-				// RAJOUTER DU CODE ICI
-
+				sscanf(gbuffer, "L %s %s %s %s", gNames[0], gNames[1], gNames[2], gNames[3]);
 				break;
 			// Message 'D' : le joueur recoit ses trois cartes
 			case 'D':
-				// RAJOUTER DU CODE ICI
-
+				sscanf(gbuffer, "D %d %d %d", &b[0], &b[1], &b[2]);
 				break;
 			// Message 'M' : le joueur recoit le n° du joueur courant
 			// Cela permet d'affecter goEnabled pour autoriser l'affichage du bouton go
 			case 'M':
-				// RAJOUTER DU CODE ICI
-
+				{ int joueur; sscanf(gbuffer, "M %d", &joueur); goEnabled = (joueur == gId); }
 				break;
 			// Message 'V' : le joueur recoit une valeur de tableCartes
 			case 'V':
-				// RAJOUTER DU CODE ICI
-
+				// V <row> <col> <val>
+				{ int row, col, val;
+				  if (sscanf(gbuffer, "V %d %d %d", &row, &col, &val) == 3) {
+					tableCartes[row][col] = val;
+				  } else {
+					// fallback for old format: V <col> <val> (for your own row)
+					int col2, val2;
+					if (sscanf(gbuffer, "V %d %d", &col2, &val2) == 2) {
+					  tableCartes[gId][col2] = val2;
+					}
+				  }
+				}
+				break;
+			// Message 'E': A player has been eliminated due to an incorrect guess
+			case 'E':
+				{
+					int eliminated;
+					sscanf(gbuffer, "E %d", &eliminated);
+					if (eliminated == gId) {
+						isEliminated = 1;
+						goEnabled = 0; // Disable the go button for eliminated player
+						
+						// Show a message that the player has been eliminated
+						SDL_ShowSimpleMessageBox(
+							SDL_MESSAGEBOX_WARNING,
+							"Eliminated!",
+							"You have been eliminated for guessing the wrong culprit!",
+							window);
+					}
+				}
+				break;
+			// Message 'W' : Un joueur a gagné
+			case 'W':
+				// W <winnerId>
+				{ 
+					int winner;
+					sscanf(gbuffer, "W %d", &winner);
+					// Show a graphical message before quitting
+					if (winner == gId) {
+						if (isEliminated == 0) {
+							SDL_ShowSimpleMessageBox(
+								SDL_MESSAGEBOX_INFORMATION,
+								"Victory!",
+								"You found the culprit!",
+								window);
+						} else {
+							// Should never happen, but just in case
+							SDL_ShowSimpleMessageBox(
+								SDL_MESSAGEBOX_INFORMATION,
+								"Victory!",
+								"You won the game!",
+								window);
+						}
+					} else {
+						if (isEliminated) {
+							SDL_ShowSimpleMessageBox(
+								SDL_MESSAGEBOX_ERROR,
+								"Defeat!",
+								"You were eliminated and another player won the game.",
+								window);
+						} else {
+							SDL_ShowSimpleMessageBox(
+								SDL_MESSAGEBOX_ERROR,
+								"Defeat!",
+								winner == 99 ? "You were the last player eliminated!" : "Another player found the culprit!",
+								window);
+						}
+					}
+					quit = 1;
+				}
 				break;
 		}
 		synchro=0;
@@ -422,13 +481,15 @@ int main(int argc, char ** argv)
 	for (i=0;i<4;i++)
         	for (j=0;j<8;j++)
         	{
-			if (tableCartes[i][j]!=-1)
-			{
-				char mess[10];
-				if (tableCartes[i][j]==100)
-					sprintf(mess,"*");
-				else
-					sprintf(mess,"%d",tableCartes[i][j]);
+			char mess[10];
+			if (tableCartes[i][j] == 100) {
+				sprintf(mess, "*");
+			} else if (tableCartes[i][j] != -1) {
+				sprintf(mess, "%d", tableCartes[i][j]);
+			} else {
+				mess[0] = '\0';
+			}
+			if (mess[0] != '\0') {
                 		SDL_Surface* surfaceMessage = TTF_RenderText_Solid(Sans, mess, col1);
                 		SDL_Texture* Message = SDL_CreateTextureFromSurface(renderer, surfaceMessage);
 

@@ -5,6 +5,7 @@
 #include <sys/types.h> 
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <time.h> // Added for time() function
 
 #include <netdb.h>
 #include <arpa/inet.h>
@@ -19,6 +20,10 @@ int nbClients;
 int fsmServer;
 int deck[13]={0,1,2,3,4,5,6,7,8,9,10,11,12};
 int tableCartes[4][8];
+int eliminatedPlayers[4] = {0, 0, 0, 0}; // Track which players are eliminated
+int remainingPlayers = 4; // Track how many players are still in the game
+int winByElimination = 0; // Flag to indicate if the win is by elimination
+int revealedValues[4][8]; // Track which values have been specifically revealed (1) vs just marked with * (0)
 char *nomcartes[]=
 {"Sebastian Moran", "irene Adler", "inspector Lestrade",
   "inspector Gregson", "inspector Baynes", "inspector Bradstreet",
@@ -243,11 +248,25 @@ int main(int argc, char *argv[])
      listen(sockfd,5);
      clilen = sizeof(cli_addr);
 
+	srand(time(NULL)); // Initialize random seed
+
 	printDeck();
 	melangerDeck();
 	createTable();
 	printDeck();
 	joueurCourant=0;
+
+	// Initialize players as "not eliminated"
+	for (i=0; i<4; i++) {
+		eliminatedPlayers[i] = 0;
+	}
+
+	// Initialize revealed values tracking
+	for (i=0; i<4; i++) {
+		for (int j=0; j<8; j++) {
+			revealedValues[i][j] = 0;
+		}
+	}
 
 	for (i=0;i<4;i++)
 	{
@@ -311,19 +330,36 @@ int main(int argc, char *argv[])
                                 if (nbClients==4)
 				{
 					// On envoie ses cartes au joueur 0, ainsi que la ligne qui lui correspond dans tableCartes
-					// RAJOUTER DU CODE ICI
-
+					sprintf(reply,"D %d %d %d", deck[0], deck[1], deck[2]);
+					sendMessageToClient(tcpClients[0].ipAddress, tcpClients[0].port, reply);
+					for (int j = 0; j < 8; j++) {
+					    sprintf(reply, "V %d %d", j, tableCartes[0][j]);
+					    sendMessageToClient(tcpClients[0].ipAddress, tcpClients[0].port, reply);
+					}
 					// On envoie ses cartes au joueur 1, ainsi que la ligne qui lui correspond dans tableCartes
-					// RAJOUTER DU CODE ICI
-
+					sprintf(reply,"D %d %d %d", deck[3], deck[4], deck[5]);
+					sendMessageToClient(tcpClients[1].ipAddress, tcpClients[1].port, reply);
+					for (int j = 0; j < 8; j++) {
+					    sprintf(reply, "V %d %d", j, tableCartes[1][j]);
+					    sendMessageToClient(tcpClients[1].ipAddress, tcpClients[1].port, reply);
+					}
 					// On envoie ses cartes au joueur 2, ainsi que la ligne qui lui correspond dans tableCartes
-					// RAJOUTER DU CODE ICI
-
+					sprintf(reply,"D %d %d %d", deck[6], deck[7], deck[8]);
+					sendMessageToClient(tcpClients[2].ipAddress, tcpClients[2].port, reply);
+					for (int j = 0; j < 8; j++) {
+					    sprintf(reply, "V %d %d", j, tableCartes[2][j]);
+					    sendMessageToClient(tcpClients[2].ipAddress, tcpClients[2].port, reply);
+					}
 					// On envoie ses cartes au joueur 3, ainsi que la ligne qui lui correspond dans tableCartes
-					// RAJOUTER DU CODE ICI
-
+					sprintf(reply,"D %d %d %d", deck[9], deck[10], deck[11]);
+					sendMessageToClient(tcpClients[3].ipAddress, tcpClients[3].port, reply);
+					for (int j = 0; j < 8; j++) {
+					    sprintf(reply, "V %d %d", j, tableCartes[3][j]);
+					    sendMessageToClient(tcpClients[3].ipAddress, tcpClients[3].port, reply);
+					}
 					// On envoie enfin un message a tout le monde pour definir qui est le joueur courant=0
-					// RAJOUTER DU CODE ICI
+					sprintf(reply, "M %d", 0);
+					broadcastMessage(reply);
 
                                         fsmServer=1;
 				}
@@ -334,19 +370,113 @@ int main(int argc, char *argv[])
 	{
 		switch (buffer[0])
 		{
-                	case 'G':
-				// RAJOUTER DU CODE ICI
+			case 'G':
+				// Player is making a guess about the culprit
+				{
+					int playerId, guiltIndex;
+					sscanf(buffer, "G %d %d", &playerId, &guiltIndex);
+					printf("Player %d (name: %s) is guessing suspect %d (%s)\n", 
+						playerId, tcpClients[playerId].name, guiltIndex, nomcartes[guiltIndex]);
+
+					// Check if the guess is correct (the culprit is card with index 12)
+					if (guiltIndex == deck[12]) {
+						// Player guessed correctly!
+						printf("Player %d guessed correctly! The culprit is %s\n", playerId, nomcartes[guiltIndex]);
+						sprintf(reply, "W %d", playerId);
+						broadcastMessage(reply);
+						// Game is over
+					} else {
+						// Incorrect guess, eliminate the player
+						eliminatedPlayers[playerId] = 1;
+						remainingPlayers--;
+						printf("Player %d is eliminated for incorrect guess.\n", playerId);
+						
+						// Send elimination notification to the player
+						sprintf(reply, "E %d", playerId);
+						broadcastMessage(reply);
+
+						// Check if only one player remains
+						if (remainingPlayers == 1) {
+							for (int i = 0; i < nbClients; i++) {
+								if (!eliminatedPlayers[i]) {
+									printf("Player %d is the last remaining player and wins the game!\n", i);
+									sprintf(reply, "W %d", i);
+									broadcastMessage(reply);
+									winByElimination = 1;
+									break;
+								}
+							}
+						} else {
+							// Move to next player who is not eliminated
+							do {
+								joueurCourant = (joueurCourant + 1) % nbClients;
+							} while (eliminatedPlayers[joueurCourant]);
+
+							sprintf(reply, "M %d", joueurCourant);
+							broadcastMessage(reply);
+						}
+					}
+				}
 				break;
-                	case 'O':
-				// RAJOUTER DU CODE ICI
+			case 'O':
+				// Player is asking about how many of a certain object other players have
+				{
+					int playerId, objetId;
+					sscanf(buffer, "O %d %d", &playerId, &objetId);
+					printf("Player %d is asking about object %d\n", playerId, objetId);
+
+						// Create an array to track which values have already been revealed to all players
+						int alreadyRevealed[4] = {0, 0, 0, 0};
+						
+						// For all players, check if they have this object and mark with '*'
+						for (int i = 0; i < nbClients; i++) {
+							if (i != playerId) { // Don't send info about the requesting player
+								// If player has at least one of the object, mark with special value 100
+								// But only if it hasn't been specifically revealed already
+								if (tableCartes[i][objetId] > 0 && !revealedValues[i][objetId]) {
+									sprintf(reply, "V %d %d %d", i, objetId, 100);
+									broadcastMessage(reply);
+								}
+							}
+						}
+
+						// Move to next player who is not eliminated
+						do {
+							joueurCourant = (joueurCourant + 1) % nbClients;
+						} while (eliminatedPlayers[joueurCourant]);
+
+						sprintf(reply, "M %d", joueurCourant);
+						broadcastMessage(reply);
+				}
 				break;
 			case 'S':
-				// RAJOUTER DU CODE ICI
+				// Player is suggesting a card to another player
+				{
+					int playerId, joueurSuggested, objetId;
+					sscanf(buffer, "S %d %d %d", &playerId, &joueurSuggested, &objetId);
+					printf("Player %d is suggesting to player %d about object %d\n", 
+						playerId, joueurSuggested, objetId);
+					
+					// Send the exact number this player has of the object
+					sprintf(reply, "V %d %d %d", joueurSuggested, objetId, tableCartes[joueurSuggested][objetId]);
+					broadcastMessage(reply);
+
+					// Mark this value as specifically revealed
+					revealedValues[joueurSuggested][objetId] = 1;
+					
+					// Move to next player who is not eliminated
+					do {
+						joueurCourant = (joueurCourant + 1) % nbClients;
+					} while (eliminatedPlayers[joueurCourant]);
+
+					sprintf(reply, "M %d", joueurCourant);
+					broadcastMessage(reply);
+				}
 				break;
-                	default:
-                        	break;
+			default:
+				break;
 		}
-        }
+	}
      	close(newsockfd);
      }
      close(sockfd);
